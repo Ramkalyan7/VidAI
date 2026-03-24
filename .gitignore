@@ -36,3 +36,105 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+
+
+# =========================
+# GENERAL
+# =========================
+.DS_Store
+*.log
+logs
+tmp
+*.tmp
+
+# =========================
+# ENV FILES (IMPORTANT 🔐)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# NODE / NEXT.JS
+# =========================
+node_modules
+.next
+out
+build
+dist
+coverage
+
+# npm / turbo
+package-lock.json
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+turbo
+.turbo
+
+# TypeScript
+*.tsbuildinfo
+
+# =========================
+# NEXT.JS SPECIFIC
+# =========================
+.next/cache
+.vercel
+
+# =========================
+# PYTHON (uv / FastAPI / worker)
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# virtual environments (even if using uv)
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+uv.lock
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# MANIM / VIDEO OUTPUT
+# =========================
+media/
+videos/
+*.mp4
+*.mov
+*.avi
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS FILES
+# =========================
+Thumbs.db
+
+# =========================
+# DATABASE
+# =========================
+*.sqlite
+*.db
+
+# =========================
+# CACHE
+# =========================
+.cache/
