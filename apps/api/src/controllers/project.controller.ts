@@ -2,6 +2,7 @@ import { Response } from "express";
 import { prisma } from "@repo/db";
 import { AuthRequest } from "../middleware/auth.middleware";
 import {z } from "zod";
+import { getNextConversationTurn } from "../utils/ai-service";
 
 
 export const createProjectSchema = z.object({
@@ -9,6 +10,10 @@ export const createProjectSchema = z.object({
     .string()
     .min(1, "Message is required")
     .max(1000, "Message too long"),
+});
+
+export const chatSchema = z.object({
+  message: z.string().min(1, "Message is required").max(2000, "Message too long"),
 });
 
 export const createProject = async (req: AuthRequest, res: Response) => {
@@ -38,9 +43,39 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    let assistantPayload: unknown;
+    try {
+      const aiResponse = await getNextConversationTurn(
+        project.messages.map((msg) => {
+          const role = (msg.role === "assistant" ? "assistant" : "user") as
+            | "assistant"
+            | "user";
+
+          return { role, content: msg.content };
+        })
+      );
+      assistantPayload = aiResponse.output;
+    } catch (aiError) {
+      assistantPayload = {
+        code: null,
+        description: null,
+        error: aiError instanceof Error ? aiError.message : "ai-service request failed",
+      };
+    }
+
+    await prisma.message.create({
+      data: {
+        projectId: project.id,
+        role: "assistant",
+        content: JSON.stringify(assistantPayload),
+      },
+    });
+
     return res.status(201).json({
       success: true,
-      data: project,
+      data: {
+        projectId: project.id,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -73,5 +108,105 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       error: "Failed to fetch projects",
     });
+  }
+};
+
+export const getProjectById = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const projectId =
+      typeof req.params.projectId === "string" ? req.params.projectId.trim() : "";
+    if (!projectId) {
+      return res.status(400).json({ error: "Project id is required" });
+    }
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId: req.userId },
+      include: {
+        messages: { orderBy: { createdAt: "asc" } },
+        videos: { orderBy: { createdAt: "asc" } },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    return res.status(200).json({ success: true, data: project });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Failed to fetch project" });
+  }
+};
+
+export const chatProject = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const projectId =
+      typeof req.params.projectId === "string" ? req.params.projectId.trim() : "";
+    if (!projectId) {
+      return res.status(400).json({ error: "Project id is required" });
+    }
+
+    const { message } = chatSchema.parse(req.body);
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId: req.userId },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const userMessage = await prisma.message.create({
+      data: {
+        projectId: project.id,
+        role: "user",
+        content: message,
+      },
+    });
+
+    const conversation = [...project.messages, userMessage].map((msg) => {
+      const role = (msg.role === "assistant" ? "assistant" : "user") as
+        | "assistant"
+        | "user";
+
+      return { role, content: msg.content };
+    });
+
+    let assistantPayload: unknown;
+    try {
+      const aiResponse = await getNextConversationTurn(conversation);
+      assistantPayload = aiResponse.output;
+    } catch (aiError) {
+      assistantPayload = {
+        code: null,
+        description: null,
+        error: aiError instanceof Error ? aiError.message : "ai-service request failed",
+      };
+    }
+
+    await prisma.message.create({
+      data: {
+        projectId: project.id,
+        role: "assistant",
+        content: JSON.stringify(assistantPayload),
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: assistantPayload,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Chat failed" });
   }
 };
