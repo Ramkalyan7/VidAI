@@ -92,6 +92,12 @@ export function ProjectsList() {
             <p className="mt-2 text-sm leading-6 text-app-muted">
               {project.messages[0]?.content ?? "No prompt saved yet."}
             </p>
+
+            <div className="mt-5">
+              <Link href="/chat" className="button-secondary">
+                Open Chat
+              </Link>
+            </div>
           </div>
         </article>
       ))}

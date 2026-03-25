@@ -2,19 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
-import {
-  clearAuthSession,
-  getAuthSession,
-  type StoredUser,
-} from "../../lib/auth-storage";
-
-type NavbarLayoutProps = {
-  children: ReactNode;
-  hideAuthAction?: boolean;
-};
+import { useEffect, useState, type ReactNode } from "react";
+import { clearAuthSession, getAuthSession, type StoredUser } from "../../lib/auth-storage";
 
 const SIDEBAR_STATE_KEY = "vidai-sidebar-collapsed";
+const DEFAULT_CONTENT_MAX_WIDTH = "56rem";
+const SIDEBAR_WIDTH_EXPANDED = "255px";
+const SIDEBAR_WIDTH_COLLAPSED = "64px";
+const AUTH_TOP_OFFSET = "96px";
+const PUBLIC_TOP_OFFSET = "88px";
 
 type IconProps = {
   className?: string;
@@ -32,6 +28,15 @@ function FolderIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
       <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChatIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M7 18l-3 2V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -68,28 +73,31 @@ function PanelLeftOpenIcon({ className = "h-4 w-4" }: IconProps) {
 
 function SidebarLink({
   href,
+  isActive,
   label,
   icon,
-  active,
   collapsed,
 }: {
   href: string;
+  isActive: boolean;
   label: string;
   icon: ReactNode;
-  active: boolean;
   collapsed: boolean;
 }) {
+  const baseClass = collapsed
+    ? "flex justify-center rounded-2xl px-0 py-2.5 text-sm transition"
+    : "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition";
+  const activeClass = isActive
+    ? "bg-white/[0.07] font-medium text-white"
+    : "text-app-muted hover:bg-white/[0.04] hover:text-white";
+
   return (
     <Link
       href={href}
-      className={
-        active
-          ? "flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3 py-3 text-sm font-medium text-white"
-          : "flex items-center gap-3 rounded-2xl px-3 py-3 text-sm text-app-muted transition hover:bg-white/[0.04] hover:text-white"
-      }
+      className={`${baseClass} ${activeClass}`}
       title={collapsed ? label : undefined}
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-app-line bg-white/[0.03] text-white">
+      <span className="grid h-5 w-5 shrink-0 place-items-center text-white">
         {icon}
       </span>
       {collapsed ? null : <span>{label}</span>}
@@ -97,19 +105,36 @@ function SidebarLink({
   );
 }
 
-export function NavbarLayout({
-  children,
-  hideAuthAction = false,
-}: NavbarLayoutProps) {
+const navItems: Array<{
+  href: string;
+  label: string;
+  icon: ReactNode;
+  match: (pathname: string) => boolean;
+}> = [
+  {
+    href: "/",
+    label: "New Project",
+    icon: <PlusIcon />,
+    match: (pathname) => pathname === "/",
+  },
+  {
+    href: "/chat",
+    label: "Chat",
+    icon: <ChatIcon />,
+    match: (pathname) => pathname.startsWith("/chat"),
+  },
+  {
+    href: "/projects",
+    label: "My Projects",
+    icon: <FolderIcon />,
+    match: (pathname) => pathname.startsWith("/projects"),
+  },
+];
+
+export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<StoredUser | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return getAuthSession()?.user ?? null;
-  });
+  const [user, setUser] = useState<StoredUser | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -119,59 +144,95 @@ export function NavbarLayout({
   });
 
   useEffect(() => {
+    setUser(getAuthSession()?.user ?? null);
+  }, [pathname]);
+
+  useEffect(() => {
+    function syncUserFromStorage() {
+      setUser(getAuthSession()?.user ?? null);
+    }
+
+    window.addEventListener("storage", syncUserFromStorage);
+    window.addEventListener("focus", syncUserFromStorage);
+
+    return () => {
+      window.removeEventListener("storage", syncUserFromStorage);
+      window.removeEventListener("focus", syncUserFromStorage);
+    };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(SIDEBAR_STATE_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const isAuthenticated = Boolean(user);
+    const sidebarWidth = isAuthenticated ? (sidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED) : "0px";
+    const topOffset = isAuthenticated ? AUTH_TOP_OFFSET : PUBLIC_TOP_OFFSET;
+    const contentMaxWidth = pathname.startsWith("/chat") ? "none" : DEFAULT_CONTENT_MAX_WIDTH;
+
+    root.style.setProperty("--app-sidebar-width", sidebarWidth);
+    root.style.setProperty("--app-top-offset", topOffset);
+    root.style.setProperty("--app-content-max-width", contentMaxWidth);
+
+    return () => {
+      root.style.removeProperty("--app-sidebar-width");
+      root.style.removeProperty("--app-top-offset");
+      root.style.removeProperty("--app-content-max-width");
+    };
+  }, [pathname, sidebarCollapsed, user]);
 
   function handleLogout() {
     clearAuthSession();
     setUser(null);
+    setSidebarCollapsed(false);
     router.push("/");
     router.refresh();
   }
 
   if (user) {
     return (
-      <div className="min-h-screen">
-        <div className="fixed left-0 right-0 top-0 z-40 flex h-20 items-center justify-between border-b border-app-line bg-app-bg px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="text-2xl font-semibold tracking-tight text-white"
-          >
-            VidAI
-          </Link>
-
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed((value) => !value)}
-            className="grid h-10 w-10 place-items-center rounded-full text-app-muted transition hover:bg-white/[0.05] hover:text-white"
-            aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
-            title={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
-          >
-            {sidebarCollapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-          </button>
-        </div>
+      <>
+        <div className="fixed left-0 right-0 top-0 z-20 border-b border-app-line" />
 
         <aside
           className={`fixed bottom-0 left-0 z-30 border-r border-app-line bg-app-bg transition-all duration-200 ${
-            sidebarCollapsed ? "w-[88px]" : "w-[255px]"
-          } top-20`}
+            sidebarCollapsed ? "w-[64px]" : "w-[255px]"
+          } top-0`}
         >
           <div className="flex h-full flex-col px-4 py-5">
+            <div className="mb-6 flex h-20 items-center justify-between">
+              {sidebarCollapsed ? null : (
+                <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
+                  VidAI
+                </Link>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((value) => !value)}
+                className={`grid h-10 w-10 place-items-center rounded-full text-app-muted transition hover:bg-white/[0.05] hover:text-white ${
+                  sidebarCollapsed ? "ml-auto" : ""
+                }`}
+                aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+                title={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+              >
+                {sidebarCollapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+              </button>
+            </div>
+
             <nav className="grid gap-2">
-              <SidebarLink
-                href="/"
-                label="New Project"
-                icon={<PlusIcon />}
-                active={pathname === "/"}
-                collapsed={sidebarCollapsed}
-              />
-              <SidebarLink
-                href="/projects"
-                label="My Projects"
-                icon={<FolderIcon />}
-                active={pathname === "/projects"}
-                collapsed={sidebarCollapsed}
-              />
+              {navItems.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  isActive={item.match(pathname)}
+                  collapsed={sidebarCollapsed}
+                />
+              ))}
             </nav>
 
             <div className="mt-auto space-y-3 pt-6">
@@ -183,62 +244,37 @@ export function NavbarLayout({
                 }`}
                 title={sidebarCollapsed ? "Logout" : undefined}
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-red-500/20 bg-red-500/[0.06]">
+                <span className="grid h-5 w-5 shrink-0 place-items-center">
                   <LogoutIcon />
                 </span>
                 {sidebarCollapsed ? null : <span>Logout</span>}
               </button>
-
-              <div
-                className={`flex rounded-2xl border border-app-line bg-white/[0.03] px-3 py-3 ${
-                  sidebarCollapsed ? "justify-center" : "items-center gap-3"
-                }`}
-                title={sidebarCollapsed ? user.email : undefined}
-              >
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-app-line bg-white/[0.06] text-sm font-medium text-white">
-                  {user.email.slice(0, 1).toUpperCase()}
-                </div>
-                {sidebarCollapsed ? null : (
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-white">Account</div>
-                    <div className="mt-1 truncate text-xs text-app-muted">
-                      {user.email}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </aside>
-
-        <main
-          className={`min-h-screen px-4 pb-6 pt-28 sm:px-6 lg:px-10 ${
-            sidebarCollapsed ? "ml-[88px]" : "ml-[255px]"
-          }`}
-        >
-          <div className="mx-auto w-full max-w-4xl">{children}</div>
-        </main>
-      </div>
+      </>
     );
   }
 
+  const hideAuthAction = pathname === "/login" || pathname === "/signup";
+
   return (
-    <div className="site-container">
-      <nav className="site-header">
-        <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
-          VidAI
-        </Link>
-
-        {hideAuthAction ? (
-          <div />
-        ) : (
-          <Link href="/login" className="button-secondary">
-            Sign in
+    <div className="fixed left-0 right-0 top-0 z-40 border-b border-app-line bg-app-bg/95 backdrop-blur">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <nav className="site-header mb-0 py-5">
+          <Link href="/" className="text-2xl font-semibold tracking-tight text-white">
+            VidAI
           </Link>
-        )}
-      </nav>
 
-      {children}
+          {hideAuthAction ? (
+            <div />
+          ) : (
+            <Link href="/login" className="button-secondary">
+              Sign in
+            </Link>
+          )}
+        </nav>
+      </div>
     </div>
   );
 }

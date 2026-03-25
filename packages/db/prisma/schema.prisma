@@ -36,7 +36,7 @@ model Project {
 model Message {
   id        String   @id @default(uuid())
   projectId String
-  role      String   // "user" | "ai"
+  role      String   // "user" | "assistant"
   content   String
   createdAt DateTime @default(now())
 
