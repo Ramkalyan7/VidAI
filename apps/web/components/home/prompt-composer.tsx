@@ -1,42 +1,47 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { createProjectRequest } from "../../lib/api-client";
 import { getAuthToken } from "../../lib/auth-storage";
+
+const PENDING_PROMPT_KEY = "vidai-pending-prompt";
 
 export function PromptComposer() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const didAutoSubmitRef = useRef(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitPrompt(prompt: string) {
     setError("");
 
-    if (!message.trim()) {
+    if (!prompt.trim()) {
       setError("Please enter a prompt.");
       return;
     }
 
     if (!getAuthToken()) {
-      router.push("/login");
+      sessionStorage.setItem(PENDING_PROMPT_KEY, prompt.trim());
+      router.push("/login?redirect=/");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      await createProjectRequest(message.trim());
-      router.push("/projects");
+      const { projectId } = await createProjectRequest(prompt.trim());
+      sessionStorage.removeItem(PENDING_PROMPT_KEY);
+      router.push(`/chat/${projectId}`);
       router.refresh();
     } catch (submitError) {
       const messageText =
         submitError instanceof Error ? submitError.message : "Project creation failed.";
 
       if (messageText.toLowerCase().includes("sign in")) {
-        router.push("/login");
+        sessionStorage.setItem(PENDING_PROMPT_KEY, prompt.trim());
+        router.push("/login?redirect=/");
         return;
       }
 
@@ -45,6 +50,31 @@ export function PromptComposer() {
       setIsSubmitting(false);
     }
   }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitPrompt(message);
+  }
+
+  useEffect(() => {
+    if (didAutoSubmitRef.current) {
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      return;
+    }
+
+    const pendingPrompt = sessionStorage.getItem(PENDING_PROMPT_KEY);
+    if (!pendingPrompt?.trim()) {
+      return;
+    }
+
+    didAutoSubmitRef.current = true;
+    setMessage(pendingPrompt);
+    submitPrompt(pendingPrompt);
+  }, []);
 
   return (
     <form
@@ -56,6 +86,7 @@ export function PromptComposer() {
         placeholder="Create a 30-second short explaining why sunsets look red, with cinematic narration, bold captions, and a minimal black-and-white visual style."
         value={message}
         onChange={(event) => setMessage(event.target.value)}
+        disabled={isSubmitting}
       />
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-app-line pt-4">

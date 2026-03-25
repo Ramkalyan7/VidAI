@@ -8,10 +8,17 @@ export function proxy(request: NextRequest) {
   const isPublicPath = PUBLIC_PATHS.has(pathname);
 
   if (!token && !isPublicPath) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (token && (pathname === "/login" || pathname === "/signup")) {
+    const redirectTarget = request.nextUrl.searchParams.get("redirect");
+    if (redirectTarget && redirectTarget.startsWith("/")) {
+      return NextResponse.redirect(new URL(redirectTarget, request.url));
+    }
+
     return NextResponse.redirect(new URL("/projects", request.url));
   }
 
@@ -19,5 +26,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/signup", "/projects", "/chat"],
+  matcher: ["/", "/login", "/signup", "/projects/:path*", "/chat/:path*"],
 };

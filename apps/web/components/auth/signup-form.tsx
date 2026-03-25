@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { signupRequest } from "../../lib/api-client";
 import { saveAuthSession } from "../../lib/auth-storage";
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,7 +29,10 @@ export function SignupForm() {
     try {
       const data = await signupRequest(email, password);
       saveAuthSession(data);
-      router.push("/projects");
+      const redirectTarget = searchParams.get("redirect");
+      router.push(
+        redirectTarget && redirectTarget.startsWith("/") ? redirectTarget : "/projects"
+      );
       router.refresh();
     } catch (submitError) {
       setError(
@@ -94,7 +98,14 @@ export function SignupForm() {
 
       <div className="text-sm text-app-muted">
         Already have an account?{" "}
-        <Link href="/login" className="text-white underline underline-offset-4">
+        <Link
+          href={
+            searchParams.get("redirect")
+              ? `/login?redirect=${encodeURIComponent(searchParams.get("redirect")!)}`
+              : "/login"
+          }
+          className="text-white underline underline-offset-4"
+        >
           Sign in
         </Link>
       </div>

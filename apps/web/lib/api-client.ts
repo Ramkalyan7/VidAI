@@ -54,6 +54,19 @@ export type Project = {
     content: string;
     createdAt: string;
   }>;
+  videos?: Array<{
+    id: string;
+    prompt: string;
+    status: string;
+    videoUrl: string | null;
+    createdAt: string;
+  }>;
+};
+
+export type AiServiceOutput = {
+  code: string | null;
+  description: string | null;
+  error: string | null;
 };
 
 export async function signupRequest(email: string, password: string) {
@@ -90,7 +103,10 @@ export async function createProjectRequest(message: string) {
   }
 
   try {
-    const response = await apiClient.post<{ success: boolean; data: Project }>(
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { projectId: string };
+    }>(
       "/projects",
       { message }
     );
@@ -111,6 +127,43 @@ export async function getProjectsRequest() {
   try {
     const response = await apiClient.get<{ success: boolean; data: Project[] }>(
       "/projects"
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function getProjectRequest(projectId: string) {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error("Please sign in to continue.");
+  }
+
+  try {
+    const response = await apiClient.get<{ success: boolean; data: Project }>(
+      `/projects/${projectId}`
+    );
+
+    return response.data.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function chatProjectRequest(projectId: string, message: string) {
+  const token = getAuthToken();
+
+  if (!token) {
+    throw new Error("Please sign in to continue.");
+  }
+
+  try {
+    const response = await apiClient.post<{ success: boolean; data: AiServiceOutput }>(
+      `/projects/${projectId}/chat`,
+      { message }
     );
 
     return response.data.data;

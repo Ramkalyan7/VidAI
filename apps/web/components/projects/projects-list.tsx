@@ -73,11 +73,14 @@ export function ProjectsList() {
           key={project.id}
           className="grid gap-5 border-b border-app-line pb-8 last:border-b-0 last:pb-0 lg:grid-cols-[220px_minmax(0,1fr)]"
         >
-          <div className="flex min-h-40 items-center justify-center rounded-3xl bg-black ring-1 ring-white/6">
+          <Link
+            href={`/chat/${project.id}`}
+            className="flex min-h-40 items-center justify-center rounded-3xl bg-black ring-1 ring-white/6"
+          >
             <div className="flex h-12 w-12 items-center justify-center rounded-full border border-app-line bg-white text-[11px] font-semibold text-black">
               PLAY
             </div>
-          </div>
+          </Link>
 
           <div>
             <div className="flex flex-wrap gap-2">
@@ -94,7 +97,7 @@ export function ProjectsList() {
             </p>
 
             <div className="mt-5">
-              <Link href="/chat" className="button-secondary">
+              <Link href={`/chat/${project.id}`} className="button-secondary">
                 Open Chat
               </Link>
             </div>

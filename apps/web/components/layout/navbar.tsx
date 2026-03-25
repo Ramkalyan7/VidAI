@@ -32,15 +32,6 @@ function FolderIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
-function ChatIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
-      <path d="M7 18l-3 2V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5z" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function LogoutIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
@@ -116,12 +107,6 @@ const navItems: Array<{
     label: "New Project",
     icon: <PlusIcon />,
     match: (pathname) => pathname === "/",
-  },
-  {
-    href: "/chat",
-    label: "Chat",
-    icon: <ChatIcon />,
-    match: (pathname) => pathname.startsWith("/chat"),
   },
   {
     href: "/projects",
