@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@repo/ui": "*",
+    "axios": "^1.13.6",
     "next": "16.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
@@ -19,10 +20,13 @@
   "devDependencies": {
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
+    "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^22.15.3",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "^9.39.1",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^4.2.2",
     "typescript": "5.9.2"
   }
 }

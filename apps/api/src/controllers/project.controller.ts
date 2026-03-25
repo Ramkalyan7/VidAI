@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { prisma } from "@repo/db";
 import { AuthRequest } from "../middleware/auth.middleware";
-import {z, ZodError } from "zod";
+import {z } from "zod";
 
 
 export const createProjectSchema = z.object({
@@ -25,6 +25,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     const project = await prisma.project.create({
       data: {
         userId: req.userId,
+        title:message,
         messages: {
           create: {
             role: "user",
