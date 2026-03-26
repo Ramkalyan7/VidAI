@@ -22,7 +22,7 @@ app = FastAPI(title="worker", version="0.1.0")
 
 
 class RenderRequest(BaseModel):
-    code: str = Field(min_length=1, description="Complete Manim Community Edition Python script")
+    code: str = Field(min_length=1, description="Manim Python script")
     scene: str | None = Field(
         default=None, description="Optional scene class name to render (e.g. 'MainScene')"
     )
@@ -105,7 +105,7 @@ def render_manim_to_video(payload: RenderRequest) -> RenderResult:
     if payload.fps is not None:
         cmd.extend(["--fps", str(payload.fps)])
 
-    start = time.time()
+
     try:
         subprocess.run(
             cmd,
@@ -129,8 +129,6 @@ def render_manim_to_video(payload: RenderRequest) -> RenderResult:
         stdout = (exc.stdout or "").strip()
         detail = "\n".join([line for line in [stderr, stdout] if line])[-6000:]
         raise HTTPException(status_code=422, detail=f"Manim render failed:\n{detail}") from exc
-    finally:
-        _ = start  # reserved for future timing metrics
 
     video_path = _find_latest_mp4(media_dir) or _find_latest_mp4(base_dir)
     if not video_path or not video_path.exists():
