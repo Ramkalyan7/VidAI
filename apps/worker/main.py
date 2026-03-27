@@ -12,16 +12,25 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 app = FastAPI(title="worker", version="0.1.0")
 
 
 class RenderRequest(BaseModel):
+    project_id: str = Field(
+        min_length=1,
+        description="Project id used for storage pathing",
+    )
     code: str = Field(min_length=1, description="Manim Python script")
     scene: str | None = Field(
         default=None, description="Optional scene class name to render (e.g. 'MainScene')"
@@ -67,6 +76,42 @@ def _find_latest_mp4(work_dir: Path) -> Path | None:
     if not mp4s:
         return None
     return max(mp4s, key=lambda p: p.stat().st_mtime)
+
+
+def _get_s3_bucket() -> str:
+    bucket = os.getenv("AWS_S3_BUCKET").strip()
+    if not bucket:
+        raise HTTPException(
+            status_code=500,
+            detail="S3 bucket is not configured. Set `S3_BUCKET` or `AWS_S3_BUCKET`.",
+        )
+    return bucket
+
+
+def _get_aws_region() -> str:
+    region= os.getenv("AWS_REGION").strip()
+    if not region:
+        raise HTTPException(
+            status_code=500,
+            detail="AWS region is not configured. Set `AWS_REGION`",
+        )    
+    return region
+
+
+def _upload_video_to_s3(video_path: Path, project_id: str) -> None:
+    bucket = _get_s3_bucket()
+    region = _get_aws_region()
+    s3_key = f"videos/{project_id}.mp4"
+
+    try:
+        boto3.client("s3", region_name=region).upload_file(
+            str(video_path),
+            bucket,
+            s3_key,
+            ExtraArgs={"ContentType": "video/mp4"},
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to upload video to S3: {exc}") from exc
 
 
 def render_manim_to_video(payload: RenderRequest) -> RenderResult:
@@ -135,7 +180,12 @@ def render_manim_to_video(payload: RenderRequest) -> RenderResult:
         shutil.rmtree(base_dir, ignore_errors=True)
         raise HTTPException(status_code=502, detail="Render completed but no .mp4 was produced")
 
-    return RenderResult(video_path=video_path, work_dir=base_dir)
+    _upload_video_to_s3(video_path, payload.project_id)
+
+    return RenderResult(
+        video_path=video_path,
+        work_dir=base_dir,
+    )
 
 
 @app.get("/health")

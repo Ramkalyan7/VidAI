@@ -18,6 +18,7 @@ Request body:
 
 ```json
 {
+  "projectId": "project-123",
   "code": "from manim import *\\n\\nclass Main(Scene):\\n    def construct(self):\\n        self.play(Write(Text('Hello')))\n",
   "scene": "Main",
   "quality": "medium"
@@ -27,3 +28,15 @@ Request body:
 Response:
 
 - `200 OK` with `video/mp4` body (`render.mp4`)
+- S3 upload also happens before the response is returned
+- Response headers include:
+  - `X-Video-S3-Bucket`
+  - `X-Video-S3-Key` with shape `prep/videos/<projectId>/<jobId>.mp4`
+  - `X-Video-S3-Url`
+
+Required env:
+
+```bash
+S3_BUCKET=your-bucket-name
+AWS_REGION=ap-south-1
+```
