@@ -12,33 +12,33 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
 
-  projects  Project[]
+  projects Project[]
 }
 
 model Project {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  title     String?
+  createdAt DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
   messages    Message[]
-  videoStatus  String //"pending" | "finished"
+  videoUrl    String 
+  videoStatus String //"pending" | "finished"
 }
 
 model Message {
   id        String   @id @default(uuid())
   projectId String
-  role      String   // "user" | "assistant"
+  role      String // "user" | "assistant"
   content   String
   createdAt DateTime @default(now())
 
-  project   Project  @relation(fields: [projectId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
 }
