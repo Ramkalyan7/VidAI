@@ -38,6 +38,14 @@ function assistantPreviewText(content: string) {
   return payload.description || payload.error || content;
 }
 
+function toChatMessages(project: Project): ChatMessage[] {
+  return project.messages.map((msg) => ({
+    id: msg.id,
+    role: msg.role === "assistant" ? "assistant" : "user",
+    content: msg.content,
+  }));
+}
+
 export default function ChatClient({ projectId }: { projectId: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -59,13 +67,7 @@ export default function ChatClient({ projectId }: { projectId: string }) {
         if (!isMounted) return;
 
         setProject(data);
-        setMessages(
-          data.messages.map((msg) => ({
-            id: msg.id,
-            role: msg.role === "assistant" ? "assistant" : "user",
-            content: msg.content,
-          }))
-        );
+        setMessages(toChatMessages(data));
       } catch (loadError) {
         if (!isMounted) return;
         setLoadError(
@@ -102,6 +104,15 @@ export default function ChatClient({ projectId }: { projectId: string }) {
     return null;
   }, [messages]);
 
+  const latestVideoSrc = useMemo(() => {
+    if (!project?.videoUrl || project.videoStatus !== "finished") {
+      return null;
+    }
+
+    const version = messages.at(-1)?.id ?? "latest";
+    return `${project.videoUrl}?v=${encodeURIComponent(version)}`;
+  }, [messages, project]);
+
   async function handleSend() {
     const trimmed = draft.trim();
     if (!trimmed || isSending) return;
@@ -120,6 +131,10 @@ export default function ChatClient({ projectId }: { projectId: string }) {
         ...prev,
         { id: assistantTempId, role: "assistant", content: JSON.stringify(output) },
       ]);
+
+      const refreshedProject = await getProjectRequest(projectId);
+      setProject(refreshedProject);
+      setMessages(toChatMessages(refreshedProject));
     } catch (sendError) {
       setSendError(
         sendError instanceof Error ? sendError.message : "Failed to send message."
@@ -217,23 +232,56 @@ export default function ChatClient({ projectId }: { projectId: string }) {
         <div className="flex h-full min-h-0 flex-col border-l border-app-line pl-4 lg:pl-6">
           <div className="min-h-0 flex-1 py-4">
             <div className="h-full min-h-[420px] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/6">
-              <div className="grid h-full grid-rows-[auto_minmax(0,1fr)]">
+              <div className="grid h-full grid-rows-[auto_auto_minmax(0,1fr)]">
                 <div className="border-b border-app-line px-4 py-3">
-                  <p className="text-xs text-app-muted">Latest Generation</p>
+                  <p className="text-xs text-app-muted">Latest Video</p>
                   <p className="mt-1 text-sm text-white">
                     {latestAssistantPayload?.description ||
                       latestAssistantPayload?.error ||
                       "No generation yet."}
                   </p>
                 </div>
-                <div className="no-scrollbar min-h-0 overflow-auto p-4">
-                  {latestAssistantPayload?.code ? (
-                    <pre className="whitespace-pre-wrap text-xs leading-5 text-app-text">
-                      {latestAssistantPayload.code}
-                    </pre>
+                <div className="border-b border-app-line bg-black px-4 py-4">
+                  {latestVideoSrc ? (
+                    <video
+                      key={latestVideoSrc}
+                      className="aspect-video w-full rounded-2xl bg-black"
+                      controls
+                      playsInline
+                      preload="metadata"
+                      src={latestVideoSrc}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : project?.videoStatus === "pending" ? (
+                    <p className="text-sm text-app-muted">
+                      Video render is in progress. The latest video will appear here once it is ready.
+                    </p>
                   ) : (
                     <p className="text-sm text-app-muted">
-                      Send a message to generate or refine the Manim code.
+                      Send a message to generate or refine the latest video.
+                    </p>
+                  )}
+                </div>
+                <div className="no-scrollbar min-h-0 overflow-auto p-4">
+                  {latestAssistantPayload?.code ? (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs text-app-muted">Render Status</p>
+                        <p className="mt-1 text-sm text-white">
+                          {project?.videoStatus || "unknown"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-app-muted">Generated Code</p>
+                        <pre className="mt-2 whitespace-pre-wrap text-xs leading-5 text-app-text">
+                          {latestAssistantPayload.code}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-app-muted">
+                      Send a message to generate or refine the video.
                     </p>
                   )}
                 </div>

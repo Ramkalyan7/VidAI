@@ -48,17 +48,12 @@ export type Project = {
   id: string;
   title: string | null;
   createdAt: string;
+  videoUrl: string;
+  videoStatus: string;
   messages: Array<{
     id: string;
     role: string;
     content: string;
-    createdAt: string;
-  }>;
-  videos?: Array<{
-    id: string;
-    prompt: string;
-    status: string;
-    videoUrl: string | null;
     createdAt: string;
   }>;
 };
