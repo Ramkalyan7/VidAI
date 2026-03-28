@@ -11,5 +11,4 @@
 export type * from './models/User'
 export type * from './models/Project'
 export type * from './models/Message'
-export type * from './models/Video'
 export type * from './commonInputTypes'

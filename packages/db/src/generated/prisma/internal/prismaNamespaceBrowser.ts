@@ -53,8 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   Project: 'Project',
-  Message: 'Message',
-  Video: 'Video'
+  Message: 'Message'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -87,7 +86,9 @@ export const ProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   title: 'title',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  videoUrl: 'videoUrl',
+  videoStatus: 'videoStatus'
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
@@ -102,18 +103,6 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
-
-
-export const VideoScalarFieldEnum = {
-  id: 'id',
-  projectId: 'projectId',
-  prompt: 'prompt',
-  status: 'status',
-  videoUrl: 'videoUrl',
-  createdAt: 'createdAt'
-} as const
-
-export type VideoScalarFieldEnum = (typeof VideoScalarFieldEnum)[keyof typeof VideoScalarFieldEnum]
 
 
 export const SortOrder = {

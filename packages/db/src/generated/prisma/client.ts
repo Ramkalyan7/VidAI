@@ -54,8 +54,3 @@ export type Project = Prisma.ProjectModel
  * 
  */
 export type Message = Prisma.MessageModel
-/**
- * Model Video
- * 
- */
-export type Video = Prisma.VideoModel

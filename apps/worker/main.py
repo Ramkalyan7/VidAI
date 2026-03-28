@@ -17,7 +17,6 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
-from starlette.responses import FileResponse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -194,20 +193,14 @@ def health() -> dict[str, str]:
 
 
 @app.post("/v1/render")
-def render(payload: RenderRequest) -> FileResponse:
+def render(payload: RenderRequest) -> dict:
     result = render_manim_to_video(payload)
 
-    # Cleanup after the file is fully sent.
-    cleanup = BackgroundTask(shutil.rmtree, result.work_dir, ignore_errors=True)
-    return FileResponse(
-        path=str(result.video_path),
-        media_type="video/mp4",
-        filename="render.mp4",
-        background=cleanup,
-    )
+    # Cleanup immediately after processing
+    shutil.rmtree(result.work_dir, ignore_errors=True)
 
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8002")))
+    return {
+        "status": "success",
+        "message": "Video rendered and uploaded successfully",
+        "project_id": payload.project_id
+    }

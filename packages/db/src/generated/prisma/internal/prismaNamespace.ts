@@ -386,8 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   Project: 'Project',
-  Message: 'Message',
-  Video: 'Video'
+  Message: 'Message'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -403,7 +402,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "project" | "message" | "video"
+    modelProps: "user" | "project" | "message"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -629,80 +628,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Video: {
-      payload: Prisma.$VideoPayload<ExtArgs>
-      fields: Prisma.VideoFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.VideoFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.VideoFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        findFirst: {
-          args: Prisma.VideoFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.VideoFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        findMany: {
-          args: Prisma.VideoFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>[]
-        }
-        create: {
-          args: Prisma.VideoCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        createMany: {
-          args: Prisma.VideoCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.VideoCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>[]
-        }
-        delete: {
-          args: Prisma.VideoDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        update: {
-          args: Prisma.VideoUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        deleteMany: {
-          args: Prisma.VideoDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.VideoUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.VideoUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>[]
-        }
-        upsert: {
-          args: Prisma.VideoUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPayload>
-        }
-        aggregate: {
-          args: Prisma.VideoAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateVideo>
-        }
-        groupBy: {
-          args: Prisma.VideoGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.VideoCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoCountAggregateOutputType> | number
-        }
-      }
-    }
   }
 } & {
   other: {
@@ -756,7 +681,9 @@ export const ProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   title: 'title',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  videoUrl: 'videoUrl',
+  videoStatus: 'videoStatus'
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
@@ -771,18 +698,6 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
-
-
-export const VideoScalarFieldEnum = {
-  id: 'id',
-  projectId: 'projectId',
-  prompt: 'prompt',
-  status: 'status',
-  videoUrl: 'videoUrl',
-  createdAt: 'createdAt'
-} as const
-
-export type VideoScalarFieldEnum = (typeof VideoScalarFieldEnum)[keyof typeof VideoScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -954,7 +869,6 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   project?: Prisma.ProjectOmit
   message?: Prisma.MessageOmit
-  video?: Prisma.VideoOmit
 }
 
 /* Types for Logging */

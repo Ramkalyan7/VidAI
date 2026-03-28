@@ -3,6 +3,7 @@ import { prisma } from "@repo/db";
 import { AuthRequest } from "../middleware/auth.middleware";
 import {z } from "zod";
 import { getNextConversationTurn } from "../utils/ai-service";
+import { buildProjectVideoUrl, renderProjectVideo } from "../utils/worker-service";
 
 
 export const createProjectSchema = z.object({
@@ -15,6 +16,16 @@ export const createProjectSchema = z.object({
 export const chatSchema = z.object({
   message: z.string().min(1, "Message is required").max(2000, "Message too long"),
 });
+
+type AssistantPayload = {
+  code: string | null;
+  description: string | null;
+  error: string | null;
+};
+
+function hasRenderableCode(payload: AssistantPayload): payload is AssistantPayload & { code: string } {
+  return typeof payload.code === "string" && payload.code.trim().length > 0 && !payload.error;
+}
 
 export const createProject = async (req: AuthRequest, res: Response) => {
   try {
@@ -30,7 +41,9 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     const project = await prisma.project.create({
       data: {
         userId: req.userId,
-        title:message,
+        title: message,
+        videoUrl: "",
+        videoStatus: "pending",
         messages: {
           create: {
             role: "user",
@@ -43,7 +56,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    let assistantPayload: unknown;
+    let assistantPayload: AssistantPayload;
     try {
       const aiResponse = await getNextConversationTurn(
         project.messages.map((msg) => {
@@ -71,6 +84,31 @@ export const createProject = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    if (hasRenderableCode(assistantPayload)) {
+      const videoUrl = buildProjectVideoUrl(project.id);
+
+      await prisma.project.update({
+        where: { id: project.id },
+        data: {
+          videoStatus: "pending",
+          videoUrl,
+        },
+      });
+
+      await renderProjectVideo({
+        project_id: project.id,
+        code: assistantPayload.code,
+      });
+
+      await prisma.project.update({
+        where: { id: project.id },
+        data: {
+          videoStatus: "finished",
+          videoUrl,
+        },
+      });
+    }
+
     return res.status(201).json({
       success: true,
       data: {
@@ -94,9 +132,6 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
     const projects = await prisma.project.findMany({
       where: { userId: req.userId },
       orderBy: { createdAt: "desc" },
-      include: {
-        messages: true,
-      },
     });
 
     return res.status(200).json({
@@ -127,7 +162,6 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
       where: { id: projectId, userId: req.userId },
       include: {
         messages: { orderBy: { createdAt: "asc" } },
-        videos: { orderBy: { createdAt: "asc" } },
       },
     });
 
@@ -181,7 +215,7 @@ export const chatProject = async (req: AuthRequest, res: Response) => {
       return { role, content: msg.content };
     });
 
-    let assistantPayload: unknown;
+    let assistantPayload: AssistantPayload;
     try {
       const aiResponse = await getNextConversationTurn(conversation);
       assistantPayload = aiResponse.output;
@@ -200,6 +234,31 @@ export const chatProject = async (req: AuthRequest, res: Response) => {
         content: JSON.stringify(assistantPayload),
       },
     });
+
+    if (hasRenderableCode(assistantPayload)) {
+      const videoUrl = buildProjectVideoUrl(project.id);
+
+      await prisma.project.update({
+        where: { id: project.id },
+        data: {
+          videoStatus: "pending",
+          videoUrl,
+        },
+      });
+
+      await renderProjectVideo({
+        project_id: project.id,
+        code: assistantPayload.code,
+      });
+
+      await prisma.project.update({
+        where: { id: project.id },
+        data: {
+          videoStatus: "finished",
+          videoUrl,
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
