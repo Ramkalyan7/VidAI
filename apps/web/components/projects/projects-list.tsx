@@ -93,7 +93,11 @@ export function ProjectsList() {
               {project.title || "Untitled project"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-app-muted">
-              {project.messages[0]?.content ?? "No prompt saved yet."}
+              {project.videoStatus === "finished"
+                ? project.videoUrl
+                  ? "Latest render is ready to view."
+                  : "No render yet."
+                : "Latest render is in progress."}
             </p>
 
             <div className="mt-5">
