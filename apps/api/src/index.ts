@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 import authRoutes from "./routes/auth.routes";
 import projectRoutes from "./routes/project.routes";
+import workerRoutes from "./routes/worker.routes";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 // routes
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
+app.use("/internal/worker", workerRoutes);
 
 app.get("/", (req, res) => {
   res.send("API running");

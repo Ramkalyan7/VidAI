@@ -3,7 +3,7 @@ import { prisma } from "@repo/db";
 import { AuthRequest } from "../middleware/auth.middleware";
 import {z } from "zod";
 import { getNextConversationTurn } from "../utils/ai-service";
-import { buildProjectVideoUrl, renderProjectVideo } from "../utils/worker-service";
+import { buildProjectVideoUrl, enqueueProjectVideoRender } from "../utils/render-queue";
 
 
 export const createProjectSchema = z.object({
@@ -25,6 +25,33 @@ type AssistantPayload = {
 
 function hasRenderableCode(payload: AssistantPayload): payload is AssistantPayload & { code: string } {
   return typeof payload.code === "string" && payload.code.trim().length > 0 && !payload.error;
+}
+
+async function queueProjectRender(projectId: string, code: string) {
+  const videoUrl = buildProjectVideoUrl(projectId);
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      videoStatus: "pending",
+      videoUrl,
+    },
+  });
+
+  try {
+    await enqueueProjectVideoRender({
+      project_id: projectId,
+      code,
+    });
+  } catch (error) {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        videoStatus: "failed",
+      },
+    });
+    throw error;
+  }
 }
 
 export const createProject = async (req: AuthRequest, res: Response) => {
@@ -85,28 +112,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
     });
 
     if (hasRenderableCode(assistantPayload)) {
-      const videoUrl = buildProjectVideoUrl(project.id);
-
-      await prisma.project.update({
-        where: { id: project.id },
-        data: {
-          videoStatus: "pending",
-          videoUrl,
-        },
-      });
-
-      await renderProjectVideo({
-        project_id: project.id,
-        code: assistantPayload.code,
-      });
-
-      await prisma.project.update({
-        where: { id: project.id },
-        data: {
-          videoStatus: "finished",
-          videoUrl,
-        },
-      });
+      await queueProjectRender(project.id, assistantPayload.code);
     }
 
     return res.status(201).json({
@@ -236,28 +242,7 @@ export const chatProject = async (req: AuthRequest, res: Response) => {
     });
 
     if (hasRenderableCode(assistantPayload)) {
-      const videoUrl = buildProjectVideoUrl(project.id);
-
-      await prisma.project.update({
-        where: { id: project.id },
-        data: {
-          videoStatus: "pending",
-          videoUrl,
-        },
-      });
-
-      await renderProjectVideo({
-        project_id: project.id,
-        code: assistantPayload.code,
-      });
-
-      await prisma.project.update({
-        where: { id: project.id },
-        data: {
-          videoStatus: "finished",
-          videoUrl,
-        },
-      });
+      await queueProjectRender(project.id, assistantPayload.code);
     }
 
     return res.status(200).json({
