@@ -55,6 +55,7 @@ export default function ChatClient({ projectId }: { projectId: string }) {
   const [sendError, setSendError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -139,6 +140,44 @@ export default function ChatClient({ projectId }: { projectId: string }) {
 
   const previewStatus = isSending ? "pending" : project?.videoStatus;
   const previewVideoSrc = isSending ? null : latestVideoSrc;
+  const downloadableVideoUrl =
+    !isSending && project?.videoStatus === "finished" && project.videoUrl
+      ? project.videoUrl
+      : null;
+
+  async function handleDownload() {
+    if (!downloadableVideoUrl || isDownloading) {
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch(downloadableVideoUrl);
+      if (!response.ok) {
+        throw new Error("Failed to download video.");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeTitle = (project?.title || "video")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "video";
+
+      link.href = blobUrl;
+      link.download = `${safeTitle}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(downloadableVideoUrl, "_blank", "noopener,noreferrer");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   async function handleSend() {
     const trimmed = draft.trim();
@@ -258,7 +297,17 @@ export default function ChatClient({ projectId }: { projectId: string }) {
 
         <div className="flex h-full min-h-0 flex-col border-l border-app-line pl-4 lg:pl-6">
           <div className="min-h-0 flex-1 py-4">
-            <div className="h-full min-h-[420px] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/6">
+            <div className="relative h-full min-h-[420px] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/6">
+              {downloadableVideoUrl ? (
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="absolute right-4 top-4 z-10 inline-flex items-center justify-center rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isDownloading ? "Downloading..." : "Download"}
+                </button>
+              ) : null}
               <RenderPreview
                 status={previewStatus}
                 videoSrc={previewVideoSrc}
