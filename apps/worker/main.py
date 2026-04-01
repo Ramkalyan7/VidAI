@@ -152,7 +152,6 @@ def _upstash_command(command: list[object]) -> object:
 
     if payload.get("error"):
         raise RuntimeError(f"Upstash command failed: {payload['error']}")
-
     return payload.get("result")
 
 
@@ -175,12 +174,13 @@ def _upstash_multi(commands: list[list[object]]) -> object:
 
     if payload.get("error"):
         raise RuntimeError(f"Upstash transaction failed: {payload['error']}")
-
+    
+    print("DEBUG payload multi:", payload, type(payload))
     return payload.get("result")
 
 
 def _detect_first_scene_class(code: str) -> str | None:
-    # Best-effort heuristic: find the first class inheriting from Scene / MovingCameraScene / ThreeDScene, etc.
+
     match = re.search(r"^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*.*Scene.*\)\s*:", code, re.M)
     return match.group(1) if match else None
 

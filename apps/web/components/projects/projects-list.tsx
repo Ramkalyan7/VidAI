@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Project, getProjectsRequest } from "../../lib/api-client";
+import { RenderPreview } from "./render-preview";
 
 export function ProjectsList() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -41,6 +42,41 @@ export function ProjectsList() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!projects.some((project) => project.videoStatus === "pending")) {
+      return;
+    }
+
+    let isCancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    async function pollProjects() {
+      try {
+        const data = await getProjectsRequest();
+        if (isCancelled) return;
+
+        setProjects(data);
+
+        if (data.some((project) => project.videoStatus === "pending")) {
+          timeoutId = setTimeout(pollProjects, 5000);
+        }
+      } catch {
+        if (!isCancelled) {
+          timeoutId = setTimeout(pollProjects, 7000);
+        }
+      }
+    }
+
+    timeoutId = setTimeout(pollProjects, 5000);
+
+    return () => {
+      isCancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [projects]);
+
   if (isLoading) {
     return <p className="mt-8 text-sm text-app-muted">Loading projects...</p>;
   }
@@ -77,9 +113,19 @@ export function ProjectsList() {
             href={`/chat/${project.id}`}
             className="flex min-h-40 items-center justify-center rounded-3xl bg-black ring-1 ring-white/6"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-app-line bg-white text-[11px] font-semibold text-black">
-              PLAY
-            </div>
+            <RenderPreview
+              status={project.videoStatus}
+              videoSrc={
+                project.videoStatus === "finished" && project.videoUrl
+                  ? `${project.videoUrl}?v=${encodeURIComponent(project.id)}`
+                  : null
+              }
+              pendingMessage="Render in progress. This card refreshes automatically."
+              failedMessage="Last render failed. Open the project to try again."
+              idleMessage="Open the project to start the first render."
+              containerClassName="h-full w-full rounded-3xl bg-black"
+              videoClassName="h-full min-h-40 w-full rounded-3xl bg-black object-cover"
+            />
           </Link>
 
           <div>
@@ -88,6 +134,9 @@ export function ProjectsList() {
                 {new Date(project.createdAt).toLocaleDateString()}
               </span>
               <span className="pill">Project</span>
+              <span className="pill uppercase tracking-[0.16em]">
+                {project.videoStatus}
+              </span>
             </div>
             <h2 className="mt-4 text-lg font-semibold tracking-tight text-white">
               {project.title || "Untitled project"}
@@ -96,8 +145,12 @@ export function ProjectsList() {
               {project.videoStatus === "finished"
                 ? project.videoUrl
                   ? "Latest render is ready to view."
-                  : "No render yet."
-                : "Latest render is in progress."}
+                  : "Render finished, but no video URL is available yet."
+                : project.videoStatus === "failed"
+                  ? "Latest render failed. Open the project to retry with a new prompt."
+                  : project.videoStatus === "pending"
+                    ? "Latest render is in progress. This list will update automatically."
+                    : "No render yet."}
             </p>
 
             <div className="mt-5">

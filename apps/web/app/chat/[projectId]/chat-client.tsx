@@ -8,6 +8,7 @@ import {
   chatProjectRequest,
   getProjectRequest,
 } from "../../../lib/api-client";
+import { RenderPreview } from "../../../components/projects/render-preview";
 
 type ChatMessage = {
   id: string;
@@ -89,20 +90,43 @@ export default function ChatClient({ projectId }: { projectId: string }) {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, isLoading]);
 
-  const latestAssistantPayload = useMemo(() => {
-    for (const msg of [...messages].reverse()) {
-      if (msg.role !== "assistant") {
-        continue;
-      }
+  useEffect(() => {
+    if (project?.videoStatus !== "pending") {
+      return;
+    }
 
-      const payload = parseAssistantPayload(msg.content);
-      if (payload) {
-        return payload;
+    let isCancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    async function pollProject() {
+      try {
+        const refreshedProject = await getProjectRequest(projectId);
+        if (isCancelled) return;
+
+        setProject(refreshedProject);
+        setMessages(toChatMessages(refreshedProject));
+
+        if (refreshedProject.videoStatus === "pending") {
+          timeoutId = setTimeout(pollProject, 4000);
+        }
+      } catch {
+        if (!isCancelled) {
+          timeoutId = setTimeout(pollProject, 6000);
+        }
       }
     }
 
-    return null;
-  }, [messages]);
+    timeoutId = setTimeout(pollProject, 4000);
+
+    return () => {
+      isCancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [project?.videoStatus, projectId]);
+
+
 
   const latestVideoSrc = useMemo(() => {
     if (!project?.videoUrl || project.videoStatus !== "finished") {
@@ -112,6 +136,9 @@ export default function ChatClient({ projectId }: { projectId: string }) {
     const version = messages.at(-1)?.id ?? "latest";
     return `${project.videoUrl}?v=${encodeURIComponent(version)}`;
   }, [messages, project]);
+
+  const previewStatus = isSending ? "pending" : project?.videoStatus;
+  const previewVideoSrc = isSending ? null : latestVideoSrc;
 
   async function handleSend() {
     const trimmed = draft.trim();
@@ -232,60 +259,17 @@ export default function ChatClient({ projectId }: { projectId: string }) {
         <div className="flex h-full min-h-0 flex-col border-l border-app-line pl-4 lg:pl-6">
           <div className="min-h-0 flex-1 py-4">
             <div className="h-full min-h-[420px] overflow-hidden rounded-[24px] bg-black ring-1 ring-white/6">
-              <div className="grid h-full grid-rows-[auto_auto_minmax(0,1fr)]">
-                <div className="border-b border-app-line px-4 py-3">
-                  <p className="text-xs text-app-muted">Latest Video</p>
-                  <p className="mt-1 text-sm text-white">
-                    {latestAssistantPayload?.description ||
-                      latestAssistantPayload?.error ||
-                      "No generation yet."}
-                  </p>
-                </div>
-                <div className="border-b border-app-line bg-black px-4 py-4">
-                  {latestVideoSrc ? (
-                    <video
-                      key={latestVideoSrc}
-                      className="aspect-video w-full rounded-2xl bg-black"
-                      controls
-                      playsInline
-                      preload="metadata"
-                      src={latestVideoSrc}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : project?.videoStatus === "pending" ? (
-                    <p className="text-sm text-app-muted">
-                      Video render is in progress. The latest video will appear here once it is ready.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-app-muted">
-                      Send a message to generate or refine the latest video.
-                    </p>
-                  )}
-                </div>
-                <div className="no-scrollbar min-h-0 overflow-auto p-4">
-                  {latestAssistantPayload?.code ? (
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs text-app-muted">Render Status</p>
-                        <p className="mt-1 text-sm text-white">
-                          {project?.videoStatus || "unknown"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-app-muted">Generated Code</p>
-                        <pre className="mt-2 whitespace-pre-wrap text-xs leading-5 text-app-text">
-                          {latestAssistantPayload.code}
-                        </pre>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-app-muted">
-                      Send a message to generate or refine the video.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <RenderPreview
+                status={previewStatus}
+                videoSrc={previewVideoSrc}
+                pendingMessage="Working on your update..."
+                failedMessage="The latest render did not complete. Edit the prompt and send another message to try again."
+                idleMessage="Send a message to generate or refine the latest video."
+                containerClassName="flex h-full rounded-[24px] bg-black"
+                videoClassName="h-full w-full rounded-[24px] bg-black"
+                controls
+                muted={false}
+              />
             </div>
           </div>
         </div>
