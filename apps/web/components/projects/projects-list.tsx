@@ -3,7 +3,22 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Project, getProjectsRequest } from "../../lib/api-client";
-import { RenderPreview } from "./render-preview";
+
+function getStatusPillClassName(status: string) {
+  if (status === "finished") {
+    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  }
+
+  if (status === "failed") {
+    return "border-red-500/30 bg-red-500/10 text-red-300";
+  }
+
+  if (status === "pending") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-200";
+  }
+
+  return "border-app-line bg-white/[0.03] text-app-muted";
+}
 
 export function ProjectsList() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -107,53 +122,36 @@ export function ProjectsList() {
       {projects.map((project) => (
         <article
           key={project.id}
-          className="grid gap-5 border-b border-app-line pb-8 last:border-b-0 last:pb-0 lg:grid-cols-[220px_minmax(0,1fr)]"
+          className="rounded-[28px] border border-app-line bg-white/[0.02] p-6"
         >
-          <Link
-            href={`/chat/${project.id}`}
-            className="flex min-h-40 items-center justify-center rounded-3xl bg-black ring-1 ring-white/6"
-          >
-            <RenderPreview
-              status={project.videoStatus}
-              videoSrc={
-                project.videoStatus === "finished" && project.videoUrl
-                  ? `${project.videoUrl}?v=${encodeURIComponent(project.id)}`
-                  : null
-              }
-              pendingMessage="Render in progress. This card refreshes automatically."
-              failedMessage="Last render failed. Open the project to try again."
-              idleMessage="Open the project to start the first render."
-              containerClassName="h-full w-full rounded-3xl bg-black"
-              videoClassName="h-full min-h-40 w-full rounded-3xl bg-black object-cover"
-            />
-          </Link>
-
-          <div>
-            <div className="flex flex-wrap gap-2">
-              <span className="pill">
-                {new Date(project.createdAt).toLocaleDateString()}
-              </span>
-              <span className="pill">Project</span>
-              <span className="pill uppercase tracking-[0.16em]">
-                {project.videoStatus}
-              </span>
-            </div>
-            <h2 className="mt-4 text-lg font-semibold tracking-tight text-white">
-              {project.title || "Untitled project"}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-app-muted">
-              {project.videoStatus === "finished"
-                ? project.videoUrl
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-2">
+                <span className="pill">
+                  {new Date(project.createdAt).toLocaleDateString()}
+                </span>
+                <span className="pill">Project</span>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] ${getStatusPillClassName(project.videoStatus)}`}
+                >
+                  {project.videoStatus}
+                </span>
+              </div>
+              <h2 className="mt-4 text-lg font-semibold tracking-tight text-white">
+                {project.title || "Untitled project"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-app-muted">
+                {project.videoStatus === "finished"
                   ? "Latest render is ready to view."
-                  : "Render finished, but no video URL is available yet."
-                : project.videoStatus === "failed"
-                  ? "Latest render failed. Open the project to retry with a new prompt."
-                  : project.videoStatus === "pending"
-                    ? "Latest render is in progress. This list will update automatically."
-                    : "No render yet."}
-            </p>
+                  : project.videoStatus === "failed"
+                    ? "Latest render failed. Open the project to retry with a new prompt."
+                    : project.videoStatus === "pending"
+                      ? "Latest render is in progress. This list will update automatically."
+                      : "No render yet."}
+              </p>
+            </div>
 
-            <div className="mt-5">
+            <div className="shrink-0">
               <Link href={`/chat/${project.id}`} className="button-secondary">
                 Open Chat
               </Link>
